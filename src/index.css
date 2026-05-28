@@ -1,0 +1,211 @@
+@import url('https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+svg {
+    margin: auto;
+}
+
+:root {
+      font-family: "Rubik", sans-serif;
+    --main-spacing: 12px;   
+}
+main {
+  min-height: 100dvh;
+  padding: var(--main-spacing);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.modalTop {
+    display: flex;
+    
+}
+
+.bigText {
+    font-size: min(25vw, 150px);
+    margin: 0 auto;
+    width: 100vw;
+    text-align: center;
+}
+
+.weatherCondition {
+    text-align: center;
+}
+
+.searchWrapper {
+    width: min(80vw, 700px);
+    position: absolute;
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+    backdrop-filter: blur(10px);
+}
+
+.search {
+        width: 100%;
+    outline: none;
+    border: none;
+    color: white;
+    padding: var(--main-spacing);
+    padding: var(--main-spacing);
+    border-radius: var(--main-spacing), var(--main-spacing), var(--main-spacing), var(--main-spacing);
+    top: 10vh;
+    font-size: 2rem;
+    background-color: hsla(207, 33%, 20%, 0.6);
+}
+
+.searchResults {
+    background-color: hsla(207, 33%, 20%, 0.4);
+    color: white;
+    top: 17vh;
+    padding: var(--main-spacing);
+}
+.searchResults div {
+    padding: var(--main-spacing);
+}
+
+
+
+.location {
+    padding: var(--main-spacing);
+    border: 1px solid hsla(207, 33%, 6%, 0.8);
+    display: flex;
+}
+
+.location svg {
+    position: relative;
+    top: -10px;
+    width: 13px;
+}
+
+.changeableLocation {
+    text-align: center;
+    width: max-content;
+    padding: var(--main-spacing);
+    margin: 0 auto;
+}
+.searchResults div:hover,  .changeableLocation:hover {
+background-color: hsla(207, 33%, 20%, 0.8);
+cursor: pointer;
+color: white;
+}
+
+table {
+    margin: 0 auto !important;
+    text-align: center;
+    width: min(500px, 95vw);
+    background: hsla(207, 73%, 20%, 0.2);
+    border-radius: var(--main-spacing);
+ table-layout: fixed;  /* columns spread evenly across width */
+}
+
+td {
+    background-color: unset;
+    padding: var(--main-spacing);
+}
+
+td, th{
+    border-bottom: 1px solid hsla(207, 73%, 20%, 0.4);
+  padding: 8px;
+}
+
+tr:hover {
+   background-color:  hsla(207, 83%, 80%, 0.8);
+   cursor: pointer;
+}
+
+/** All weather settings **/
+
+.drizzleLight, .rainLight, .rainShowerLight, .freezingRainLight {
+    background: linear-gradient(rgb(95, 96, 98), rgb(78, 78, 79), rgb(72, 72, 76));
+    color: rgb(223, 220, 207);
+}
+
+.drizzleModerate,.freezingDrizzleDense, .rainModerate, .snowFallModerate {
+    background: linear-gradient(rgb(80, 78, 78), rgb(64, 64, 65), rgb(60, 60, 61));
+    color: rgb(223, 220, 207);
+}
+
+.rainHeavy, .freezingRainHeavy, .drizzleDense, .snowFallHeavy {
+    background: linear-gradient(rgb(60, 63, 63), rgb(56, 56, 58), rgb(42, 43, 44));
+    color: rgb(223, 220, 207);
+}
+
+.freezingDrizzleLight, .snowFallModerate {
+    background: linear-gradient(70deg, rgb(135, 134, 133), rgb(125, 124, 113), rgb(105, 104, 102));
+    color: rgb(223, 220, 207);
+}
+
+
+.clearSky {
+    background: linear-gradient(30deg, rgb(85, 176, 236), rgba(29 137 209), rgb(24, 123, 189));
+    color: rgb(223, 220, 207);
+}
+
+.mainlyClear, .partlyCloudy {
+    background: linear-gradient(160deg, rgb(105, 186, 240), rgb(115, 195, 250), rgb(130, 201, 248),  rgb(175, 245, 255));
+    color: rgb(56, 68, 95);
+}
+
+.overcast {
+    background: linear-gradient(30deg, rgb(140, 139, 141), rgb(145 146 148), rgb(162 164 166));
+    color: rgb(27, 27, 31);
+}
+
+.fog, .depositingtimeFog {
+    background: linear-gradient( rgb(181, 180, 182), rgb(216, 218, 223), rgb(233, 235, 238));
+    color: rgb(51, 47, 47);
+}
+
+.snowFallSlight, .snowGrains {
+    background: linear-gradient(rgb(90, 90, 91), rgb(130, 138, 138), rgb(141, 141, 142));
+    color: rgb(223, 220, 207);
+}
+
+.locationMenu {
+    background: unset;
+    background-color: hsla(207, 33%, 20%, 0.4);
+    width: 100vw;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    padding: var(--main-spacing);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    overflow-x: scroll;
+}
+
+.weatherColor {
+    fill: currentColor;
+}
+
+.overcast .dayWeather, .drizzleLight .dayWeather {
+    color: white;
+    background-color: hsla(207, 13%, 20%, 1);
+}
+
+.dayWeather {
+    background-color: hsl(231, 29%, 95%);
+    position: fixed;
+    width: min(500px, 95vw);
+    top: var(--main-spacing);
+    left: 50vw;
+    transform: translateX(-50%);
+    z-index: 1;
+    padding: var(--main-spacing);
+}
+
+.dayWeather section {
+    display: flex;
+    justify-content: flex-start;
+    padding: var(--main-spacing);
+}
+
+.dayWeather svg {
+    margin: 0;
+}
