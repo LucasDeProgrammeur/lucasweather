@@ -1,159 +1,139 @@
 import L from 'leaflet';
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, WMSTileLayer } from 'react-leaflet'
+import { useEffect, useState } from 'react'
+import { ImageOverlay, MapContainer, TileLayer } from 'react-leaflet'
 import Header from './components/Header';
 
-export default function Radar() {
+const WMS_URL = "https://anonymous.api.dataplatform.knmi.nl/wms/adaguc-server"
+const DATASET = "radar_forecast_2.0"
+const FRAME_COUNT = 25
+const ZOOM = 7
 
+// Area covered by each radar image. Larger than what is visible at zoom 7,
+// so dragging the map doesn't reveal the image edge.
+const BOUNDS = L.latLngBounds([49.5, 0], [55, 10.5])
 
+// Request the image in the map's own projection (Web Mercator, EPSG:3857).
+// ImageOverlay stretches the image linearly between its corners, which only
+// lines up if the image itself is in the same projection as the map.
+const sw = L.CRS.EPSG3857.project(BOUNDS.getSouthWest())
+const ne = L.CRS.EPSG3857.project(BOUNDS.getNorthEast())
+const BBOX = [sw.x, sw.y, ne.x, ne.y].join(",")
 
-    const [timeSteps, setTimeSteps] = useState<Array<string>>([]);
-    const [currentTimeStep, setCurrentTimeStep] = useState<String>("");
-    const [index, setIndex] = useState<number | null>(null);
-    const [displayIndex, setDisplayIndex] = useState(0)
-    const [cachedIndices, setCachedIndices] = useState<Set<number>>(new Set([0]))
-    const layerRef = useRef<any>(null);
-    const WINDOW = 1;
-    useEffect(() => {
-        if (layerRef.current) {
-            layerRef.current.setParams({
-                TIME: currentTimeStep,
-            });
-        }
-    }, [currentTimeStep]);
+// Request the image at the map's native resolution for this zoom level,
+// so it is as sharp as the old tiles without downloading extra pixels.
+const size = L.CRS.EPSG3857.latLngToPoint(BOUNDS.getSouthEast(), ZOOM)
+    .subtract(L.CRS.EPSG3857.latLngToPoint(BOUNDS.getNorthWest(), ZOOM))
 
-
-    useEffect(() => {
-        GetCapabilities();
-        //   const now = new Date()
-
-        //     const closestTime = times.reduce((prev, curr) => {
-        //         return Math.abs(new Date(curr) - now) < Math.abs(new Date(prev) - now)
-        //             ? curr
-        //             : prev
-        //     })
-
-    }, []);
-
-    useEffect(() => {
-        console.log(currentTimeStep)
-    }, [currentTimeStep])
-
-    useEffect(() => {
-    const t = setTimeout(() => {
-        setDisplayIndex(Number(index))
-    }, 1000)
-
-    return () => clearTimeout(t)
-}, [index])
-
-    useEffect(() => {
-        const newCache = new Set(cachedIndices)
-
-        for (
-            let i = Math.max(0, (index ?? 0) - WINDOW);
-            i <= Math.min(timeSteps.length - 1, (index ?? 0) + WINDOW);
-            i++
-        ) {
-            newCache.add(i)
-        }
-
-        setCachedIndices(newCache)
-    }, [index, timeSteps])
-
-    async function GetCapabilities() {
-        const res = await fetch(
-            "https://anonymous.api.dataplatform.knmi.nl/wms/adaguc-server?DATASET=radar_forecast_2.0&SERVICE=WMS&REQUEST=GetCapabilities"
-        )
-
-        const text = await res.text()
-
-        // Parse XML
-        const parser = new DOMParser()
-        const xml = parser.parseFromString(text, "text/xml")
-
-        // Find <Dimension name="time">
-        const timeNode = xml.querySelector('Dimension[name="time"]')
-
-        if (!timeNode) {
-            console.error("No time dimension found")
-            return []
-        }
-
-        const value = timeNode.textContent.trim()
-
-        // Example format:
-        // 2026-05-21T08:35:00Z/2026-05-28T10:30:00Z/PT5M
-        const [start, end, step] = value.split("/")
-
-        const startDate = new Date(start)
-        const endDate = new Date(end)
-
-        // parse PT5M → 5 minutes
-        const match = step.match(/PT(\d+)M/)
-        const stepMinutes = match ? parseInt(match[1]) : 5
-
-        let times = []
-
-        let current = new Date(startDate)
-
-        while (current <= endDate) {
-            times.push(current.toISOString())
-            current.setMinutes(current.getMinutes() + stepMinutes)
-        }
-        times = times.slice(times.length - 25, times.length);
-
-        console.log("Radar times:", times)
-        setTimeSteps(times);
-        setCurrentTimeStep(times[0]);
-        return times
-    }
-
-
-const radarLayers = useMemo(() => {
-    return timeSteps.map((time, i) => {
-        if (!cachedIndices.has(i)) return null
-
-        return (
-            <WMSTileLayer
-                            key={time}
-                            url="https://anonymous.api.dataplatform.knmi.nl/wms/adaguc-server"
-                            layers="precipitation_nowcast"
-                            format="image/png"
-                            transparent
-                            version="1.3.0"
-                            styles="rainrate-blue-to-purple/shaded"
-                            attribution="KNMI"
-                            opacity={i === displayIndex ? 1 : 0.01}
-                            zIndex={i === displayIndex ? 100 : 1}
-                            updateWhenIdle={true}
-                            keepBuffer={2}
-                            params={{
-                                DATASET: "radar_forecast_2.0",
-                                TIME: time,
-                            }}
-                        />
-        )
+function frameUrl(time: string) {
+    const params = new URLSearchParams({
+        DATASET,
+        SERVICE: "WMS",
+        REQUEST: "GetMap",
+        VERSION: "1.3.0",
+        LAYERS: "precipitation_nowcast",
+        STYLES: "rainrate-blue-to-purple/shaded",
+        FORMAT: "image/png",
+        TRANSPARENT: "true",
+        CRS: "EPSG:3857",
+        BBOX,
+        WIDTH: String(Math.round(size.x)),
+        HEIGHT: String(Math.round(size.y)),
+        TIME: time,
     })
-}, [cachedIndices, timeSteps, displayIndex])
+    return `${WMS_URL}?${params}`
+}
+
+// Reads the available time range from GetCapabilities and returns the last
+// FRAME_COUNT time steps, oldest first.
+async function fetchTimeSteps(signal: AbortSignal): Promise<string[]> {
+    const res = await fetch(`${WMS_URL}?DATASET=${DATASET}&SERVICE=WMS&REQUEST=GetCapabilities`, { signal })
+    const xml = new DOMParser().parseFromString(await res.text(), "text/xml")
+
+    // Example: "2026-05-21T08:35:00Z/2026-05-28T10:30:00Z/PT5M" (start/end/step)
+    const value = xml.querySelector('Dimension[name="time"]')?.textContent?.trim()
+    if (!value) throw new Error("No time dimension found")
+
+    const [, end, step] = value.split("/")
+    const stepMs = Number(step?.match(/PT(\d+)M/)?.[1] ?? 5) * 60_000
+    const endMs = new Date(end).getTime()
+
+    return Array.from({ length: FRAME_COUNT }, (_, i) =>
+        new Date(endMs - (FRAME_COUNT - 1 - i) * stepMs).toISOString()
+    )
+}
+
+export default function Radar() {
+    const [timeSteps, setTimeSteps] = useState<string[]>([])
+    // time step → local object URL of the downloaded radar image
+    const [frames, setFrames] = useState<Record<string, string>>({})
+    const [index, setIndex] = useState(0)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        const controller = new AbortController()
+        const objectUrls: string[] = []
+
+        async function loadFrame(time: string) {
+            try {
+                const res = await fetch(frameUrl(time), { signal: controller.signal })
+                if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                const blob = await res.blob()
+                if (controller.signal.aborted) return
+                const url = URL.createObjectURL(blob)
+                objectUrls.push(url)
+                setFrames(prev => ({ ...prev, [time]: url }))
+            } catch (e) {
+                if (!controller.signal.aborted) console.error(`Radar frame ${time} failed:`, e)
+            }
+        }
+
+        fetchTimeSteps(controller.signal)
+            .then(times => {
+                setTimeSteps(times)
+                // Download every frame up front, in parallel. Each is one small
+                // PNG (~10-15 KB), so all 25 arrive within a few seconds.
+                times.forEach(loadFrame)
+            })
+            .catch(e => {
+                if (!controller.signal.aborted) setError(String(e))
+            })
+
+        return () => {
+            controller.abort()
+            objectUrls.forEach(url => URL.revokeObjectURL(url))
+        }
+    }, [])
+
+    const time = timeSteps[index]
+    const frame = time ? frames[time] : undefined
+    const loadedCount = Object.keys(frames).length
 
     return (
         <main>
             <Header />
-            {!timeSteps.length && <h3>Fetching possible timeframe, loading...</h3>}
-            <MapContainer crs={L.CRS.EPSG3857} center={[52.1326, 5.2913]} zoom={7} zoomControl={false} maxZoom={7} minZoom={7} scrollWheelZoom={false} doubleClickZoom={false}>
+            {error && <h3>Could not load radar data: {error}</h3>}
+            {!error && !timeSteps.length && <h3>Fetching possible timeframe, loading...</h3>}
+            <MapContainer crs={L.CRS.EPSG3857} center={[52.1326, 5.2913]} zoom={ZOOM} zoomControl={false} maxZoom={ZOOM} minZoom={ZOOM} scrollWheelZoom={false} doubleClickZoom={false}>
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-
-                {radarLayers}
-
+                {frame && <ImageOverlay url={frame} bounds={BOUNDS} attribution="KNMI" />}
             </MapContainer>
-            {!isNaN(Number(index)) && timeSteps && <h3>Time ({new Date(timeSteps[Number(index)]).toLocaleTimeString()})</h3>}
-            {timeSteps.length && <input type="range" step={0} min={0} max={24} value={index || 0} onChange={e => setIndex(Number(e.target.value))} onPointerUp={_ => setCurrentTimeStep(timeSteps[Number(index)])} />}
-
-            <p>Loading in the tiles from KNMI is slow at this moment. A fix is being worked on.</p>
+            {time && <h3>Time ({new Date(time).toLocaleTimeString()})</h3>}
+            {timeSteps.length > 0 && (
+                <input
+                    type="range"
+                    min={0}
+                    max={timeSteps.length - 1}
+                    step={1}
+                    value={index}
+                    onChange={e => setIndex(Number(e.target.value))}
+                />
+            )}
+            {timeSteps.length > 0 && loadedCount < timeSteps.length && (
+                <p>Loading radar frames... {loadedCount}/{timeSteps.length}</p>
+            )}
         </main>
     )
 }
