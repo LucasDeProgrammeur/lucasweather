@@ -1,73 +1,58 @@
-# React + TypeScript + Vite
+# Lucas Weather
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Live:** [lucasweather.lucashopman.nl](https://lucasweather.lucashopman.nl) · **Rain radar:** [/radar](https://lucasweather.lucashopman.nl/radar)
 
-Currently, two official plugins are available:
+A personal weather app: current weather, a 14-day forecast and a Buienradar-style rain radar for the Netherlands. I built it because I wanted a weather app of my own, with no ads and no tracking. When the KNMI released their own app, I was curious about how I would handle it myself. The live webapp is on the latest rain radar branch to show off the functionality.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+![Lucas Weather screenshot](lucasweather_preview.png)
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Current weather and 14-day forecast**: min/max temperature, weather type, wind speed and wind direction (with a rotating arrow)
+- **Hourly detail per day**: click a day to see charts of temperature and rain by the hour, plus sunrise and sunset
+- **Multiple cities**: search worldwide, save several cities and switch between them (press `/` to search)
+- **Background that changes with the weather**: the theme follows the current weather code
+- **Rain radar**: the last 25 radar frames from KNMI on an OpenStreetMap map, with a time slider
 
-## Expanding the ESLint configuration
+## How some of it works
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Rain radar for Dutch users
+The radar talks directly to KNMI's public WMS service:
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. It reads the available time range from `GetCapabilities` and works out the last 25 time steps.
+2. It then requests the frame, Leaflet's ImageOverlay puts it over the map of The Netherlands.
+3. It requests the frame with the zoom size of the leaflet map.
+4. The slider changes the `index` which changes the current timestep and the current frame used.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### City search
+I split all the city names of the world in small JSON files. When typing in two letters, the searchbar shows all the suggestions. This is all inside the browser and no external API is called.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Stack
+
+- **React 19 + TypeScript**, built with **Vite** into a static site
+- **React Router** for the weather and radar pages
+- **Chart.js** (react-chartjs-2) for the hourly charts
+- **Leaflet** (react-leaflet) with OpenStreetMap tiles for the radar
+
+## Running it locally
+
+```bash
+npm install
+npm run dev      # development server
+npm run build    # static build in dist/
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+No API keys needed: Open-Meteo and the KNMI WMS endpoint are both public.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Data & credits
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- Weather forecasts: [Open-Meteo](https://open-meteo.com/) (CC BY 4.0)
+- Rain radar: [KNMI Data Platform](https://dataplatform.knmi.nl/), dataset `radar_forecast_2.0`
+- Map tiles: © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors
+
+## Nice things I could add
+
+- [ ] Installable PWA, so it works like a real app on your phone
+- [ ] More detail in the daily view
+- [ ] Put a rain graph inside the slider
+- [ ] Make use of React suspense instead of simply conditionally rendering things based on if I received the data or not. For a more advanced approach, maybe use tanstack query
