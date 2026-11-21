@@ -215,6 +215,7 @@ input[type="range"] {
     width: min(90vw, 800px);
     height: min(70vh, 600px);
     margin: 0 auto;
+    transition: opacity 150ms ease-out;
 }
 
 header {

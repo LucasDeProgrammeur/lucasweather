@@ -1,15 +1,19 @@
 import L from 'leaflet';
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, WMSTileLayer } from 'react-leaflet'
 import Header from './components/Header';
 
 export default function Radar() {
+
+
+
     const [timeSteps, setTimeSteps] = useState<Array<string>>([]);
     const [currentTimeStep, setCurrentTimeStep] = useState<String>("");
     const [index, setIndex] = useState<number | null>(null);
-
+    const [displayIndex, setDisplayIndex] = useState(0)
+    const [cachedIndices, setCachedIndices] = useState<Set<number>>(new Set([0]))
     const layerRef = useRef<any>(null);
-
+    const WINDOW = 1;
     useEffect(() => {
         if (layerRef.current) {
             layerRef.current.setParams({
@@ -34,6 +38,28 @@ export default function Radar() {
     useEffect(() => {
         console.log(currentTimeStep)
     }, [currentTimeStep])
+
+    useEffect(() => {
+    const t = setTimeout(() => {
+        setDisplayIndex(Number(index))
+    }, 1000)
+
+    return () => clearTimeout(t)
+}, [index])
+
+    useEffect(() => {
+        const newCache = new Set(cachedIndices)
+
+        for (
+            let i = Math.max(0, (index ?? 0) - WINDOW);
+            i <= Math.min(timeSteps.length - 1, (index ?? 0) + WINDOW);
+            i++
+        ) {
+            newCache.add(i)
+        }
+
+        setCachedIndices(newCache)
+    }, [index, timeSteps])
 
     async function GetCapabilities() {
         const res = await fetch(
@@ -76,6 +102,7 @@ export default function Radar() {
             current.setMinutes(current.getMinutes() + stepMinutes)
         }
         times = times.slice(times.length - 25, times.length);
+
         console.log("Radar times:", times)
         setTimeSteps(times);
         setCurrentTimeStep(times[0]);
@@ -83,32 +110,44 @@ export default function Radar() {
     }
 
 
+const radarLayers = useMemo(() => {
+    return timeSteps.map((time, i) => {
+        if (!cachedIndices.has(i)) return null
+
+        return (
+            <WMSTileLayer
+                            key={time}
+                            url="https://anonymous.api.dataplatform.knmi.nl/wms/adaguc-server"
+                            layers="precipitation_nowcast"
+                            format="image/png"
+                            transparent
+                            version="1.3.0"
+                            styles="rainrate-blue-to-purple/shaded"
+                            attribution="KNMI"
+                            opacity={i === displayIndex ? 1 : 0.01}
+                            zIndex={i === displayIndex ? 100 : 1}
+                            updateWhenIdle={true}
+                            keepBuffer={2}
+                            params={{
+                                DATASET: "radar_forecast_2.0",
+                                TIME: time,
+                            }}
+                        />
+        )
+    })
+}, [cachedIndices, timeSteps, displayIndex])
+
     return (
         <main>
             <Header />
             {!timeSteps.length && <h3>Fetching possible timeframe, loading...</h3>}
-            <MapContainer crs={L.CRS.EPSG3857} center={[52.1326, 5.2913]} zoom={7} zoomControl={false} scrollWheelZoom={false} doubleClickZoom={false}>
+            <MapContainer crs={L.CRS.EPSG3857} center={[52.1326, 5.2913]} zoom={7} zoomControl={false} maxZoom={7} minZoom={7} scrollWheelZoom={false} doubleClickZoom={false}>
                 <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
-                {timeSteps.length && currentTimeStep && <WMSTileLayer
-
-                    ref={layerRef}
-                    url={`https://anonymous.api.dataplatform.knmi.nl/wms/adaguc-server`}
-                    layers="precipitation_nowcast"
-                    format="image/png"
-                    transparent={true}
-                    version="1.3.0"
-                    styles="rainrate-blue-to-purple/shaded"
-                    attribution='KNMI'
-                    params={
-                        
-                        {  DATASET: "radar_forecast_2.0", TIME: currentTimeStep }
-                    }
-                />
-                }
+                {radarLayers}
 
             </MapContainer>
             {!isNaN(Number(index)) && timeSteps && <h3>Time ({new Date(timeSteps[Number(index)]).toLocaleTimeString()})</h3>}

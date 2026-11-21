@@ -4,7 +4,9 @@ import LightSnowSVG from "./assets/LightSnowSVG";
 import MainlyClearSVG from "./assets/MainlyClearSVG";
 import ModerateRainSVG from "./assets/ModerateRainSVG";
 import ModerateSnowSVG from "./assets/ModerateSnowSVG";
+import RainStormSVG from "./assets/RainStormSVG";
 import SunSVG from "./assets/sunSVG";
+import ThunderStormSVG from "./assets/ThunderStormSVG";
 
 type WeatherIconProps = {
     weatherCode: number;
@@ -30,12 +32,16 @@ const WeatherIcon = ({weatherCode}: WeatherIconProps) => {
         case 61:
             return <DrizzleSVG />
             break;
+        case 65:
+            return <RainStormSVG />
         case 63:
             return <ModerateRainSVG />
         case 71:
             return <LightSnowSVG />
         case 73:
             return <ModerateSnowSVG />
+        case 95:
+            return <ThunderStormSVG />
         default:
             return <p>{weatherCode}</p>
         break;
