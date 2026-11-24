@@ -10,6 +10,7 @@ import setCookie from './helpers/setCookie';
 import getCookie from './helpers/getCookie';
 import WindSVG from './assets/WindSVG';
 import DayWeather from './components/DayWeather';
+import Header from './components/Header';
 function App() {
   const [weatherData, setWeatherdata] = useState<WeatherApiResponse>();
   const [dailyModalOpen, setDailyModalOpen] = useState(false);
@@ -47,8 +48,8 @@ function App() {
   return (
     <>
       <main className={weatherClassMap[weatherData?.current_weather.weathercode ?? 0]}>
+        <Header />
         {dailyModalOpen && <DayWeather dayChosen={dayChosen} currentWeatherLocation={currentWeatherLocation} dailyModalOpen={dailyModalOpen} setDailyModalOpen={setDailyModalOpen} />}
-        <h1>LucasWeather</h1>
         <h3 className='changeableLocation' onClick={() => setLocationSearchOpen(true)}>{currentWeatherLocation ? currentWeatherLocation.city : "Tap/click to set city"}  </h3>
         {currentWeatherLocation && <h4 className='changeableLocation' onClick={() => setLocationSearchOpen(true)}>Add city</h4>}
         <h1 className='bigText'>{weatherData?.current_weather.temperature}°C</h1>
@@ -99,7 +100,7 @@ function App() {
 
         </table>
       </main>
-      <LocationMenu setWeatherData={setWeatherdata} currentWeatherLocation={currentWeatherLocation} weatherData={weatherData} locations={weatherLocations} setCurrentWeatherLocation={setCurrentWeatherLocation} setWeatherLocations={setWeatherLocations} />
+        <LocationMenu setWeatherData={setWeatherdata} currentWeatherLocation={currentWeatherLocation} weatherData={weatherData} locations={weatherLocations} setCurrentWeatherLocation={setCurrentWeatherLocation} setWeatherLocations={setWeatherLocations} />
     </>
   )
 }
